@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Feb 16, 2026 at 07:59 AM
+-- Generation Time: Mar 25, 2026 at 07:39 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -49,19 +49,22 @@ INSERT INTO `admin` (`id`, `username`, `password`) VALUES
 CREATE TABLE `cases` (
   `case_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,
-  `ngo_id` int(11) NOT NULL,
-  `team_id` int(11) NOT NULL,
-  `case_status` enum('Assigned','Ongoing','Rehabilitation','Completed','Closed') DEFAULT 'Assigned',
+  `category` enum('Depression','Family Issues','Marital Issues','Hopelessness','Other') NOT NULL,
+  `description` text DEFAULT NULL,
+  `ngo_id` int(11) DEFAULT NULL,
+  `team_id` int(11) DEFAULT NULL,
+  `case_status` enum('Pending','Assigned','Ongoing','Rehabilitation','Completed','Closed') DEFAULT 'Pending',
   `assigned_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `closed_at` datetime DEFAULT NULL
+  `closed_at` datetime DEFAULT NULL,
+  `recommended_counselor_id` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `cases`
 --
 
-INSERT INTO `cases` (`case_id`, `user_id`, `ngo_id`, `team_id`, `case_status`, `assigned_at`, `closed_at`) VALUES
-(1, 1, 1, 1, 'Ongoing', '2026-02-16 05:33:33', '2026-02-17 00:00:00');
+INSERT INTO `cases` (`case_id`, `user_id`, `category`, `description`, `ngo_id`, `team_id`, `case_status`, `assigned_at`, `closed_at`, `recommended_counselor_id`) VALUES
+(1, 1, 'Depression', 'After Prototype ', 1, 1, 'Closed', '2026-03-25 06:04:39', '2026-03-25 00:00:00', 1);
 
 -- --------------------------------------------------------
 
@@ -83,7 +86,31 @@ CREATE TABLE `counseling_sessions` (
 --
 
 INSERT INTO `counseling_sessions` (`session_id`, `case_id`, `session_date`, `notes`, `next_session_date`, `created_at`) VALUES
-(1, 1, '2026-02-16 10:42:00', 'XYZ', '2026-02-28 10:42:00', '2026-02-16 05:42:30');
+(1, 1, '2026-02-16 10:42:00', 'XYZ', '2026-02-28 10:42:00', '2026-02-16 05:42:30'),
+(2, 1, '2026-03-26 11:21:00', 'Prototype Session', '2026-04-09 11:22:00', '2026-03-25 06:22:07');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `counselors`
+--
+
+CREATE TABLE `counselors` (
+  `counselor_id` int(11) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `phone` varchar(20) DEFAULT NULL,
+  `specialization` enum('Depression','Family Issues','Marital Issues','Hopelessness','Other') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `counselors`
+--
+
+INSERT INTO `counselors` (`counselor_id`, `name`, `email`, `password`, `phone`, `specialization`, `created_at`) VALUES
+(1, 'counselor Ali', 'haider@gmail.com', '$2y$10$MyjKujFZCcuePJRzf0FYxO3cQH0cPnT0dFQqMCBI6GUOplj/.XtRm', NULL, 'Depression', '2026-03-25 06:13:23');
 
 -- --------------------------------------------------------
 
@@ -113,28 +140,6 @@ INSERT INTO `ngos` (`ngo_id`, `ngo_name`, `email`, `password`, `phone`, `address
 -- --------------------------------------------------------
 
 --
--- Table structure for table `progress_updates`
---
-
-CREATE TABLE `progress_updates` (
-  `progress_id` int(11) NOT NULL,
-  `case_id` int(11) NOT NULL,
-  `updated_by` int(11) NOT NULL,
-  `progress_note` text NOT NULL,
-  `progress_level` enum('Low','Moderate','Good','Excellent') DEFAULT 'Low',
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `progress_updates`
---
-
-INSERT INTO `progress_updates` (`progress_id`, `case_id`, `updated_by`, `progress_note`, `progress_level`, `created_at`) VALUES
-(1, 1, 1, 'fdsafd', 'Good', '2026-02-16 05:44:32');
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `skill_development`
 --
 
@@ -152,7 +157,8 @@ CREATE TABLE `skill_development` (
 --
 
 INSERT INTO `skill_development` (`skill_id`, `case_id`, `skill_name`, `skill_status`, `remarks`, `updated_at`) VALUES
-(1, 1, 'fds', 'Learning', 'adsfs', '2026-02-16 05:46:13');
+(2, 1, 'fds', 'Learning', 'fdsa', '2026-03-25 06:24:10'),
+(3, 1, 'fds', 'Practicing', 'fdsa', '2026-03-25 06:24:19');
 
 -- --------------------------------------------------------
 
@@ -192,7 +198,7 @@ CREATE TABLE `users` (
   `gender` enum('Male','Female','Other') DEFAULT NULL,
   `issue_type` enum('Depression','Family Issues','Marital Issues','Hopelessness','Other') NOT NULL,
   `description` text DEFAULT NULL,
-  `status` enum('Pending','Assigned','Under Treatment','Recovered','Closed') DEFAULT 'Pending',
+  `status` enum('Pending','Approved','Rejected') DEFAULT 'Pending',
   `is_verified` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -202,7 +208,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`user_id`, `full_name`, `email`, `password`, `phone`, `gender`, `issue_type`, `description`, `status`, `is_verified`, `created_at`) VALUES
-(1, 'NASIR ABBAS', 'nasiryt.827@gmail.com', '$2y$10$naB0ZF/oT9UaFniZy55xxuvi64ZnZO2FHofZVvWND88osqOXi0jsS', '03176526827', 'Male', 'Depression', 'fadsfd', 'Pending', 1, '2026-02-16 05:22:13');
+(1, 'NASIR ABBAS', 'nasiryt.827@gmail.com', '$2y$10$naB0ZF/oT9UaFniZy55xxuvi64ZnZO2FHofZVvWND88osqOXi0jsS', '03176526827', 'Male', 'Depression', 'fadsfd', 'Approved', 1, '2026-02-16 05:22:13');
 
 --
 -- Indexes for dumped tables
@@ -218,10 +224,7 @@ ALTER TABLE `admin`
 -- Indexes for table `cases`
 --
 ALTER TABLE `cases`
-  ADD PRIMARY KEY (`case_id`),
-  ADD KEY `user_id` (`user_id`),
-  ADD KEY `ngo_id` (`ngo_id`),
-  ADD KEY `team_id` (`team_id`);
+  ADD PRIMARY KEY (`case_id`);
 
 --
 -- Indexes for table `counseling_sessions`
@@ -231,19 +234,18 @@ ALTER TABLE `counseling_sessions`
   ADD KEY `case_id` (`case_id`);
 
 --
+-- Indexes for table `counselors`
+--
+ALTER TABLE `counselors`
+  ADD PRIMARY KEY (`counselor_id`),
+  ADD UNIQUE KEY `email` (`email`);
+
+--
 -- Indexes for table `ngos`
 --
 ALTER TABLE `ngos`
   ADD PRIMARY KEY (`ngo_id`),
   ADD UNIQUE KEY `email` (`email`);
-
---
--- Indexes for table `progress_updates`
---
-ALTER TABLE `progress_updates`
-  ADD PRIMARY KEY (`progress_id`),
-  ADD KEY `case_id` (`case_id`),
-  ADD KEY `updated_by` (`updated_by`);
 
 --
 -- Indexes for table `skill_development`
@@ -286,7 +288,13 @@ ALTER TABLE `cases`
 -- AUTO_INCREMENT for table `counseling_sessions`
 --
 ALTER TABLE `counseling_sessions`
-  MODIFY `session_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `session_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `counselors`
+--
+ALTER TABLE `counselors`
+  MODIFY `counselor_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `ngos`
@@ -295,16 +303,10 @@ ALTER TABLE `ngos`
   MODIFY `ngo_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `progress_updates`
---
-ALTER TABLE `progress_updates`
-  MODIFY `progress_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
 -- AUTO_INCREMENT for table `skill_development`
 --
 ALTER TABLE `skill_development`
-  MODIFY `skill_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `skill_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `team_members`
@@ -323,25 +325,10 @@ ALTER TABLE `users`
 --
 
 --
--- Constraints for table `cases`
---
-ALTER TABLE `cases`
-  ADD CONSTRAINT `cases_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `cases_ibfk_2` FOREIGN KEY (`ngo_id`) REFERENCES `ngos` (`ngo_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `cases_ibfk_3` FOREIGN KEY (`team_id`) REFERENCES `team_members` (`team_id`) ON DELETE CASCADE;
-
---
 -- Constraints for table `counseling_sessions`
 --
 ALTER TABLE `counseling_sessions`
   ADD CONSTRAINT `counseling_sessions_ibfk_1` FOREIGN KEY (`case_id`) REFERENCES `cases` (`case_id`) ON DELETE CASCADE;
-
---
--- Constraints for table `progress_updates`
---
-ALTER TABLE `progress_updates`
-  ADD CONSTRAINT `progress_updates_ibfk_1` FOREIGN KEY (`case_id`) REFERENCES `cases` (`case_id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `progress_updates_ibfk_2` FOREIGN KEY (`updated_by`) REFERENCES `team_members` (`team_id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `skill_development`

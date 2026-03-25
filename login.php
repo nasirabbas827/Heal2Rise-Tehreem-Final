@@ -111,11 +111,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION["role"] = "team_member";
                     $_SESSION["member_role"] = $member_role;
 
-                    // Redirect to team member dashboard
                     header("Location: team/team_dashboard.php");
                     exit();
                 } else $password_err = "Incorrect password.";
             } else $email_err = "No team member account found.";
+
+            mysqli_stmt_close($stmt);
+        }
+
+        // ===============================
+        // If COUNSELOR selected
+        // ===============================
+        elseif ($role == "counselor") {
+
+            $sql = "SELECT counselor_id, email, password, name 
+                    FROM counselors WHERE email = ?";
+
+            $stmt = mysqli_prepare($conn, $sql);
+            mysqli_stmt_bind_param($stmt, "s", $email);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_store_result($stmt);
+
+            if (mysqli_stmt_num_rows($stmt) == 1) {
+
+                mysqli_stmt_bind_result($stmt, $id, $email_db, $hashed_password, $counselor_name);
+                mysqli_stmt_fetch($stmt);
+
+                if (password_verify($password, $hashed_password)) {
+                    $_SESSION["id"] = $id;
+                    $_SESSION["email"] = $email_db;
+                    $_SESSION["name"] = $counselor_name;
+                    $_SESSION["role"] = "counselor";
+
+                    // Redirect to counselor dashboard
+                    header("Location: counselor/counselor_dashboard.php");
+                    exit();
+                } else $password_err = "Incorrect password.";
+            } else $email_err = "No counselor account found.";
 
             mysqli_stmt_close($stmt);
         }
@@ -159,6 +191,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <option value="user" <?php if($role=="user") echo "selected"; ?>>User</option>
                 <option value="ngo" <?php if($role=="ngo") echo "selected"; ?>>NGO</option>
                 <option value="team_member" <?php if($role=="team_member") echo "selected"; ?>>Team Member</option>
+                <option value="counselor" <?php if($role=="counselor") echo "selected"; ?>>Counselor</option>
             </select>
             <div style="color:red;"><?php echo $role_err; ?></div>
         </div>

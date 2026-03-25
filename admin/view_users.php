@@ -104,14 +104,12 @@ if (mysqli_num_rows($users) === 0) {
 
                 <form method="post">
                     <td>
-                        <select name="status">
-                            <option value="Pending" <?php if($user['status']=="Pending") echo "selected"; ?>>Pending</option>
-                            <option value="Assigned" <?php if($user['status']=="Assigned") echo "selected"; ?>>Assigned</option>
-                            <option value="Under Treatment" <?php if($user['status']=="Under Treatment") echo "selected"; ?>>Under Treatment</option>
-                            <option value="Recovered" <?php if($user['status']=="Recovered") echo "selected"; ?>>Recovered</option>
-                            <option value="Closed" <?php if($user['status']=="Closed") echo "selected"; ?>>Closed</option>
-                        </select>
-                    </td>
+    <select name="status">
+        <option value="Pending" <?php if($user['status']=="Pending") echo "selected"; ?>>Pending</option>
+        <option value="Approved" <?php if($user['status']=="Approved") echo "selected"; ?>>Approved</option>
+        <option value="Rejected" <?php if($user['status']=="Rejected") echo "selected"; ?>>Rejected</option>
+    </select>
+</td>
 
                     <td>
                         <select name="is_verified">

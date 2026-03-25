@@ -1,23 +1,50 @@
 <?php
 session_start();
-
 if (!isset($_SESSION["id"]) || $_SESSION["role"] != "team_member") {
     header("location: index.php");
     exit;
 }
 
 include "config.php";
-
 $team_id = $_SESSION["id"];
+$message = "";
 
-// ===============================
+// 1. Handle Counselor Recommendation
+if (isset($_POST['recommend_counselor'])) {
+    $case_id = intval($_POST['case_id']);
+    $counselor_id = intval($_POST['counselor_id']);
+    
+    $update_sql = "UPDATE cases SET recommended_counselor_id = ? WHERE case_id = ? AND team_id = ?";
+    $stmt_up = mysqli_prepare($conn, $update_sql);
+    mysqli_stmt_bind_param($stmt_up, "iii", $counselor_id, $case_id, $team_id);
+    mysqli_stmt_execute($stmt_up);
+    $message = "Counselor updated successfully!";
+}
+
+// 2. Handle Closure Request (Setting status to Completed)
+if (isset($_POST['request_closure'])) {
+    $case_id = intval($_POST['case_id']);
+    $update_status = "UPDATE cases SET case_status = 'Completed' WHERE case_id = ? AND team_id = ?";
+    $stmt_cl = mysqli_prepare($conn, $update_status);
+    mysqli_stmt_bind_param($stmt_cl, "ii", $case_id, $team_id);
+    if(mysqli_stmt_execute($stmt_cl)) {
+        $message = "Case #$case_id marked as Completed!";
+    }
+}
+
+// Fetch all Counselors for the dropdown
+$c_list = mysqli_query($conn, "SELECT counselor_id, name, specialization FROM counselors");
+$counselors_array = [];
+while($c = mysqli_fetch_assoc($c_list)) { $counselors_array[] = $c; }
+
 // Fetch assigned cases
-// ===============================
 $query = "
-    SELECT c.case_id, u.full_name AS user_name, n.ngo_name, c.case_status, c.assigned_at, c.closed_at
+    SELECT c.case_id, u.full_name AS user_name, n.ngo_name, c.case_status, c.assigned_at, 
+           c.category, c.recommended_counselor_id, co.name AS counselor_name
     FROM cases c
     JOIN users u ON c.user_id = u.user_id
     JOIN ngos n ON c.ngo_id = n.ngo_id
+    LEFT JOIN counselors co ON c.recommended_counselor_id = co.counselor_id
     WHERE c.team_id = ?
     ORDER BY c.assigned_at DESC
 ";
@@ -31,72 +58,101 @@ $result = mysqli_stmt_get_result($stmt);
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team Member Dashboard</title>
-<link rel="stylesheet" href="../CSS/style.css">
-<style>
-    .dashboard { max-width: 1100px; margin: 30px auto; padding: 20px; }
-    h2 { margin-bottom: 20px; }
-    .card { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
-    th { background: #007BFF; color: #fff; }
-    tr:hover { background: #f1f1f1; }
-    .btn { display: inline-block; padding: 6px 12px; margin: 2px; border-radius: 4px; color: #fff; text-decoration: none; font-size: 14px; }
-    .btn-sessions { background: #28a745; }
-    .btn-progress { background: #ffc107; color: #000; }
-    .btn-skills { background: #17a2b8; }
-    .no-cases { font-style: italic; color: #555; margin-top: 20px; }
-</style>
+    <meta charset="UTF-8">
+    <title>Team Dashboard | Heal2Rise</title>
+    <link rel="stylesheet" href="../CSS/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .dashboard { max-width: 1250px; margin: 30px auto; padding: 20px; }
+        .status-Ongoing { background: #e3f2fd; color: #1976d2; }
+        .status-Completed { background: #d4edda; color: #155724; }
+        .status-Pending { background: #fff3cd; color: #856404; }
+        
+        .btn-manage { background: #3498db; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; float: right; }
+        .btn-view { background: #6c757d; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 12px; }
+        .btn-close-req { background: #e67e22; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        
+        .recommend-box { display: flex; gap: 5px; align-items: center; }
+        select { padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px; }
+        .btn-save { background: #27ae60; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .alert { padding: 10px; background: #d4edda; color: #155724; border-radius: 5px; margin-bottom: 15px; }
+    </style>
 </head>
 <body>
 
 <?php include('navbar.php'); ?>
 
 <div class="dashboard">
-    <h2>Welcome, <?php echo htmlspecialchars($_SESSION["email"]); ?> (<?php echo htmlspecialchars($_SESSION["member_role"]); ?>)</h2>
+    <a href="manage_counselors.php" class="btn-manage"><i class="fa fa-user-md"></i> Counselor Directory</a>
+    <h2>Team Panel: <?php echo htmlspecialchars($_SESSION["email"]); ?></h2>
 
-    <?php if(mysqli_num_rows($result) > 0) { ?>
+    <?php if($message) echo "<div class='alert'>$message</div>"; ?>
+
     <div class="card">
-        <table>
-            <tr>
-                <th>Case ID</th>
-                <th>User</th>
-                <th>NGO</th>
-                <th>Status</th>
-                <th>Assigned At</th>
-                <th>Closed At</th>
-                <th>Actions</th>
-            </tr>
+        <h3>Cases Management</h3>
+        <table width="100%" cellpadding="10">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th>ID & Category</th>
+                    <th>User / NGO</th>
+                    <th>Status</th>
+                    <th>Counselor Assignment</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while($case = mysqli_fetch_assoc($result)) { ?>
+                <tr>
+                    <td>
+                        <strong>#<?php echo $case['case_id']; ?></strong><br>
+                        <small class="badge"><?php echo $case['category']; ?></small>
+                    </td>
+                    <td>
+                        <i class="fa fa-user"></i> <?php echo htmlspecialchars($case['user_name']); ?><br>
+                        <i class="fa fa-university"></i> <?php echo htmlspecialchars($case['ngo_name']); ?>
+                    </td>
+                    <td>
+                        <span class="badge status-<?php echo $case['case_status']; ?>">
+                            <?php echo $case['case_status']; ?>
+                        </span>
+                    </td>
+                    <td>
+                        <form method="POST" class="recommend-box">
+                            <input type="hidden" name="case_id" value="<?php echo $case['case_id']; ?>">
+                            <select name="counselor_id">
+                                <option value="">-- Assign Counselor --</option>
+                                <?php foreach($counselors_array as $c) { 
+                                    $selected = ($case['recommended_counselor_id'] == $c['counselor_id']) ? "selected" : "";
+                                    echo "<option value='{$c['counselor_id']}' $selected>{$c['name']}</option>";
+                                } ?>
+                            </select>
+                            <button type="submit" name="recommend_counselor" class="btn-save">
+                                <i class="fa fa-check"></i>
+                            </button>
+                        </form>
+                    </td>
+                    <td>
+                        <div>
+                            <a href="case_view.php?id=<?php echo $case['case_id']; ?>" class="btn-view" title="View Details">
+                                <i class="fa fa-eye"></i> Details
+                            </a>
 
-            <?php while($case = mysqli_fetch_assoc($result)) { ?>
-            <tr>
-                <td><?php echo $case['case_id']; ?></td>
-                <td><?php echo htmlspecialchars($case['user_name']); ?></td>
-                <td><?php echo htmlspecialchars($case['ngo_name']); ?></td>
-                <td><?php echo $case['case_status']; ?></td>
-                <td><?php echo $case['assigned_at']; ?></td>
-                <td><?php echo $case['closed_at'] ? $case['closed_at'] : '-'; ?></td>
-                <td>
-                    <a href="sessions.php?case_id=<?php echo $case['case_id']; ?>" class="btn btn-sessions">Sessions</a>
-                    <a href="progress.php?case_id=<?php echo $case['case_id']; ?>" class="btn btn-progress">Progress</a>
-                    <a href="skills.php?case_id=<?php echo $case['case_id']; ?>" class="btn btn-skills">Skills</a>
-                </td>
-            </tr>
-            <?php } ?>
+                            <?php if($case['case_status'] != 'Completed' && $case['case_status'] != 'Closed'): ?>
+                                <form method="POST" onsubmit="return confirm('Mark this case as Completed for Admin review?')">
+                                    <input type="hidden" name="case_id" value="<?php echo $case['case_id']; ?>">
+                                    <button type="submit" name="request_closure" class="btn-close-req">
+                                        <i class="fa fa-flag-checkered"></i> Finish
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </td>
+                </tr>
+                <?php } ?>
+            </tbody>
         </table>
     </div>
-    <?php } else { ?>
-        <p class="no-cases">No cases assigned to you yet.</p>
-    <?php } ?>
-
 </div>
 
 </body>
 </html>
-
-<?php
-mysqli_stmt_close($stmt);
-mysqli_close($conn);
-?>
